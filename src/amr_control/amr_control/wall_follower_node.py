@@ -47,8 +47,6 @@ class WallFollowerNode(LifecycleNode):
                 .bool_value
             )
 
-            scan_profile = QoSProfile(history=QoSHistoryPolicy.KEEP_LAST, depth=10, reliability = QoSReliabilityPolicy.BEST_EFFORT, durability = QoSDurabilityPolicy.VOLATILE)
-            #
             # Subscribers
             # TODO: 2.7. Synchronize _compute_commands_callback with /odometry and /scan.
 
@@ -59,12 +57,12 @@ class WallFollowerNode(LifecycleNode):
                 message_filters.Subscriber(self, Odometry, "/odometry")
             )
             self._subscribers.append(
-                message_filters.Subscriber(self, LaserScan, "/scan", qos_profile = scan_profile)
+                message_filters.Subscriber(self, LaserScan, "/scan")
             )
             ts = message_filters.ApproximateTimeSynchronizer(
                 self._subscribers,
                 queue_size=10,  # tamaño de la cola
-                slop=9.0,  # tiempo máximo de espera,
+                slop=9.0,  # tiempo máximo de espera
             )
 
             ts.registerCallback(self._compute_commands_callback)
@@ -112,7 +110,6 @@ class WallFollowerNode(LifecycleNode):
             pose_msg: Message containing the estimated robot pose.
 
         """
-        self.get_logger().info("Received messages.")
         if not pose_msg.localized:
             # TODO: 2.8. Parse the odometry from the Odometry message (i.e., read z_v and z_w).
             z_v: float = odom_msg.twist.twist.linear.x
@@ -127,7 +124,10 @@ class WallFollowerNode(LifecycleNode):
 
             # Publish
             self._publish_velocity_commands(v, w)
-            
+            msg = TwistStamped()
+            msg.twist.linear.x = v
+            msg.twist.angular.z = w
+            self._cmd_publisher.publish(msg)
 
 
     def _publish_velocity_commands(self, v: float, w: float) -> None:
@@ -138,11 +138,8 @@ class WallFollowerNode(LifecycleNode):
             w: Angular velocity command [rad/s].
 
         """
-        # 2.11. Complete the function body with your code (i.e., replace the pass statement).
-        msg = TwistStamped()
-        msg.twist.linear.x = v
-        msg.twist.angular.z = w
-        self._cmd_publisher.publish(msg)
+        # TODO: 2.11. Complete the function body with your code (i.e., replace the pass statement).
+        pass
 
 
 def main(args=None):

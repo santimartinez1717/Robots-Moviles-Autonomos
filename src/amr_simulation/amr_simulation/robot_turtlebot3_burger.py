@@ -48,8 +48,8 @@ class TurtleBot3Burger(Robot):
             phi_r *= scale
             phi_l *= scale
 
-        self._sim.setJointTargetVelocity(self._motors["right"], phi_r)
-        self._sim.setJointTargetVelocity(self._motors["left"], phi_l)
+        self._set_motor_speed("right", phi_r)
+        self._set_motor_speed("left", phi_l)
 
         
     def sense(self) -> tuple[list[float], float, float]:
@@ -104,8 +104,8 @@ class TurtleBot3Burger(Robot):
 
         # TODO: 2.2. Compute the derivatives of the angular positions to obtain velocities [rad/s].
 
-        phi_left = encoders["left"]/self._dt
-        phi_right = encoders["right"]/self._dt
+        phi_left = encoders["left"]/self.dt
+        phi_right = encoders["right"]/self.dt
 
         
 

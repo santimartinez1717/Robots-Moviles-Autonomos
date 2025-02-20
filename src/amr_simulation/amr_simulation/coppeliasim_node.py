@@ -72,21 +72,31 @@ class CoppeliaSimNode(LifecycleNode):
             self._cmd_vel_subscription = self.create_subscription(
                 msg_type=TwistStamped,
                 topic="/cmd_vel",
-                callback=self._next_step_callback, qos_profile= 10,
+                callback=self._next_step_callback,
             )
 
             # TODO: 3.3. Sync the /pose and /cmd_vel subscribers if enable_localization is True.
+            if enable_localization:
+                self._pose_subscription = message_filters.Subscriber(
+                    self, PoseStamped, "/pose"
+                )
+                self._subscribers = [self._pose_subscription, self._cmd_vel_subscription]
+
+                self._synchronizer = message_filters.TimeSynchronizer(
+                    self._subscribers, 10
+                )
+                self._synchronizer.registerCallback(self._next_step_callback)
 
             # Publishers
             # TODO: 2.4. Create the /odometry (Odometry message) and /scan (LaserScan) publishers.
 
             # odometria: valores medios de las velocidades lineal y angular que se han aplicado realmente durante el último periodo de muestreo
             self._odometry_publisher = self.create_publisher(
-                msg_type=Odometry, topic="/odometry", qos_profile=10
+                msg_type=Odometry, topic="/odometry"
             )
 
             self._laser_scan_publisher = self.create_publisher(  # medida de haces del lidar en un instante de tiempo
-                msg_type=LaserScan, topic="/scan", qos_profile=10
+                msg_type=LaserScan, topic="/scan"
             )
 
             # Attribute and object initializations
