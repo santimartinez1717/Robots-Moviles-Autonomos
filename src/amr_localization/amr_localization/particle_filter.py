@@ -87,6 +87,7 @@ class ParticleFilter:
 
     def move(self, v: float, w: float) -> None:
         """Performs a motion update on the particles.
+        Particles are to move with velocity v and angular velocity w on time period dt.
 
         Args:
             v: Linear velocity [m].
@@ -95,8 +96,25 @@ class ParticleFilter:
         """
         self._iteration += 1
 
+    
         # TODO: 3.5. Complete the function body with your code.
-        
+
+        #Add noise to the motion model
+        v_noise = np.random.normal(0, self._sigma_v)
+        w_noise = np.random.normal(0, self._sigma_w)
+
+        for i in range(self._particle_count):
+            theta = self._particles[i][2]
+            self._particles[i][0] += (v + v_noise) * self._dt * math.cos(theta)
+            self._particles[i][1] += (v + v_noise) * self._dt * math.sin(theta)
+            self._particles[i][2] += (w + w_noise) * self._dt
+
+
+        # Normalize the orientation of the particles
+        for i in range(self._particle_count):
+            self._particles[i][2] = (self._particles[i][2] + np.pi) % (2 * np.pi) - np.pi
+
+
     def resample(self, measurements: list[float]) -> None:
         """Samples a new set of particles.
 
@@ -204,9 +222,10 @@ class ParticleFilter:
         """
         particles = np.empty((particle_count, 3), dtype=float)
 
+        # TODO: 3.4. Complete the missing function body with your code.
         # Descomponer los límites del mapa
-        min_x, max_x = self._map.bounds[0]
-        min_y, max_y = self._map.bounds[1]
+        min_x, max_x = self._map.bounds()[0], self._map.bounds()[2]
+        min_y, max_y = self._map.bounds()[1], self._map.bounds()[3]
 
         # Orientaciones válidas para las partículas
         valid_orientations = [0, np.pi/2, np.pi, 3*np.pi/2]

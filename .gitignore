@@ -2,7 +2,11 @@
 build/
 install/
 log/
-
+.devcontainer/
+devel/
 # Python
 __pycache__/
 .vscode/
+
+#Folder
+images/

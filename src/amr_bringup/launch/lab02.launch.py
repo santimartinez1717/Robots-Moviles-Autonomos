@@ -23,7 +23,7 @@ def generate_launch_description():
         name="coppeliasim",
         namespace="",
         output="screen",
-        arguments=["--ros-args", "--log-level", "WARN"],
+        arguments=["--ros-args", "--log-level", "INFO"],
         parameters=[{"start": start}],
     )
 
@@ -31,7 +31,7 @@ def generate_launch_description():
         package="amr_bringup",
         executable="lifecycle_manager",
         output="screen",
-        arguments=["--ros-args", "--log-level", "WARN"],
+        arguments=["--ros-args", "--log-level", "INFO"],
         parameters=[
             {
                 "node_startup_order": (
