@@ -114,7 +114,6 @@ class WallFollowerNode(LifecycleNode):
         """
         self.get_logger().info("Received messages.")
         if not pose_msg.localized:
-            print("HOLA")
             # TODO: 2.8. Parse the odometry from the Odometry message (i.e., read z_v and z_w).
             z_v: float = odom_msg.twist.twist.linear.x
             z_w: float = odom_msg.twist.twist.angular.z

@@ -82,6 +82,29 @@ class ParticleFilter:
         # TODO: 3.10. Complete the missing function body with your code.
         localized: bool = False
         pose: tuple[float, float, float] = (float("inf"), float("inf"), float("inf"))
+
+        # Compute the DBSCAN clustering
+        clustering = DBSCAN(eps=0.1, min_samples=10)
+        clustering.fit(self._particles[:, :2])
+        labels = clustering.labels_
+        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+
+        # If there is only one cluster, the robot is localized
+        if n_clusters == 1:
+            localized = True
+
+            self._particle_count = 100
+            self._particles = self._particles[:self._particle_count]
+            angles = self._particles[:, 2] 
+            pose = (  #centroid of the cluster as pose estimate
+                np.mean(self._particles[:, 0]),
+                np.mean(self._particles[:, 1]),
+                np.arctan2(np.mean(np.sin(angles), axis=0), np.mean(np.cos(angles), axis=0)),
+            ) 
+        else:
+            # If there are multiple clusters, keep 100 particles for pose tracking
+            self._particles = self._init_particles(self._particle_count, False, (float("nan"), float("nan"), float("nan")), (float("nan"), float("nan"), float("nan")))
+    
         
         return localized, pose
 
@@ -123,7 +146,26 @@ class ParticleFilter:
 
         """
         # TODO: 3.9. Complete the function body with your code (i.e., replace the pass statement).
-        pass
+        
+        # Compute the weights of the particles
+        weights = np.array([self._measurement_probability(measurements, particle) for particle in self._particles])
+
+        # Normalize the weights
+        weights /= np.sum(weights)
+
+        # Sistematic resampling
+        N = len(self._particles)
+
+        u1 = np.random.uniform(0, 1/N)
+
+        indexes = np.zeros(N, dtype=int)
+        cumulative_sum = np.cumsum(weights)
+        for k in range(N):
+            u = u1 + k / N
+            indexes[k] = np.searchsorted(cumulative_sum, u)
+
+        self._particles = self._particles[indexes]
+
         
     def plot(self, axes, orientation: bool = True):
         """Draws particles.
@@ -277,6 +319,11 @@ class ParticleFilter:
 
         # TODO: 3.6. Complete the missing function body with your code.
         
+        rays = self._lidar_rays(particle, range(0, 360, 45))  # 8 uniformly spaced rays
+        for ray in rays:
+            intersection,  distance = self._map.check_collision(ray, True)
+            z_hat.append(distance)
+
         return z_hat
 
     @staticmethod
@@ -293,8 +340,11 @@ class ParticleFilter:
 
         """
         # TODO: 3.7. Complete the function body (i.e., replace the code below).
-        return 0.0
-        
+    
+        return (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
+
+
+    
     def _lidar_rays(
         self, pose: tuple[float, float, float], indices: tuple[float], degree_increment: float = 1.5
     ) -> list[list[tuple[float, float]]]:
@@ -348,4 +398,10 @@ class ParticleFilter:
 
         # TODO: 3.8. Complete the missing function body with your code.
         
+        z_hat = self._sense(particle) #predictions: measurements from the particle
+        for z, z_hat_i in zip(measurements, z_hat):
+            if np.isnan(z_hat_i):
+                z_hat_i = self._sensor_range_min
+            probability *= self._gaussian(z_hat_i, self._sigma_z, z)
+
         return probability
