@@ -18,7 +18,7 @@ def generate_launch_description():
         name="particle_filter",
         namespace="",
         output="screen",
-        arguments=["--ros-args", "--log-level", "WARN"],
+        arguments=["--ros-args", "--log-level", "INFO"],
         parameters=[
             {
                 "enable_plot": True,

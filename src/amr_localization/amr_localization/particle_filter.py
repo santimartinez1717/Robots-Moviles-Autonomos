@@ -74,39 +74,57 @@ class ParticleFilter:
         Adapts the amount of particles depending on the number of clusters during localization.
         100 particles are kept for pose tracking.
 
+        
         Returns:
             localized: True if the pose estimate is valid.
             pose: Robot pose estimate (x, y, theta) [m, m, rad].
 
         """
-        # TODO: 3.10. Complete the missing function body with your code.
         localized: bool = False
         pose: tuple[float, float, float] = (float("inf"), float("inf"), float("inf"))
+        
+        if len(self._particles) == 0:
+            return localized, pose
 
-        # Compute the DBSCAN clustering
-        clustering = DBSCAN(eps=0.1, min_samples=10)
-        clustering.fit(self._particles[:, :2])
+        # Extraer posiciones (x, y) de las partículas
+        particle_positions = np.array([[p[0], p[1]] for p in self._particles])
+
+        # Aplicar DBSCAN para encontrar clusters de partículas
+        clustering = DBSCAN(eps=0.1, min_samples=10, algorithm='kd_tree', n_jobs = -1).fit(particle_positions)
         labels = clustering.labels_
-        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
 
-        # If there is only one cluster, the robot is localized
-        if n_clusters == 1:
+        # Contar el número de clusters detectados
+        unique_labels = set(labels)
+        unique_labels.discard(-1)  # Eliminar ruido (label = -1)
+
+        if len(unique_labels) == 1:  # Solo un cluster detectado
+            print("solo un cluster")
             localized = True
 
-            self._particle_count = 100
-            self._particles = self._particles[:self._particle_count]
-            angles = self._particles[:, 2] 
-            pose = (  #centroid of the cluster as pose estimate
-                np.mean(self._particles[:, 0]),
-                np.mean(self._particles[:, 1]),
-                np.arctan2(np.mean(np.sin(angles), axis=0), np.mean(np.cos(angles), axis=0)),
-            ) 
-        else:
-            # If there are multiple clusters, keep 100 particles for pose tracking
-            self._particles = self._init_particles(self._particle_count, False, (float("nan"), float("nan"), float("nan")), (float("nan"), float("nan"), float("nan")))
-    
-        
+            # Obtener partículas del cluster principal
+            main_cluster = self._particles[labels == list(unique_labels)[0]]
+
+            # Calcular centroide del cluster
+            x_mean = np.mean(main_cluster[:, 0])
+            y_mean = np.mean(main_cluster[:, 1])
+
+            # thetas = np.array([p[2] for p in main_cluster])
+            theta_mean = np.mean(main_cluster[:,2])  # Promedio directo de los ángulos
+
+            # Asegurar que el ángulo esté en el rango [0, 2π]
+            if theta_mean < 0:
+                theta_mean += 2 * np.pi
+            elif theta_mean >= 2 * np.pi:
+                theta_mean -= 2 * np.pi
+
+            pose = (x_mean, y_mean, theta_mean)
+
+            # Reducimos el número de partículas para mejorar eficiencia
+            self._particles = main_cluster[np.random.choice(len(main_cluster), 100, replace=True)]
+
         return localized, pose
+
+
 
     def move(self, v: float, w: float) -> None:
         """Performs a motion update on the particles.
@@ -117,35 +135,41 @@ class ParticleFilter:
             w: Angular velocity [rad/s].
 
         """
+        
         self._iteration += 1
 
-
         for i, particle in enumerate(self._particles):
+
+            x, y, theta = particle
             # Ruido en la velocidad lineal (v) y angular (w)
             noise_v = np.random.normal(0, self._sigma_v)  # Ruido en la velocidad lineal
             noise_w = np.random.normal(0, self._sigma_w)  # Ruido en la velocidad angular
-            
+
             # Velocidades con ruido
             v_noisy = max(0, v + noise_v)  # Evita movimientos hacia atrás
             w_noisy = w + noise_w
 
-
-            # Actualización de la orientación (theta)
-            particle[2]  = (particle[2] + w_noisy * self._dt + np.pi) % (2 * np.pi) - np.pi
-
-
+            # Guardar posición anterior antes de la actualización
+            prev_position = (x, y)
+            
 
             # Actualización de la posición (x, y)
-            particle[0] += v_noisy * np.cos(particle[2]) * self._dt
-            particle[1] += v_noisy * np.sin(particle[2]) * self._dt
+            x_next = x + v_noisy * np.cos(theta) * self._dt
+            y_next = y + v_noisy * np.sin(theta) * self._dt
+
+            theta +=  w_noisy * self._dt % (2 * np.pi)
+
+            if not self._map.contains((x_next, y_next)):
 
             # Corregir la posición si la partícula ha salido del entorno
-            if not self._map.contains((particle[0], particle[1])):
+                collision_point, _ = self._map.check_collision([prev_position, (x_next, y_next)])
 
-                particle[0], particle[1] = self._map.check_collision((particle[0], particle[1]))
-                particle[2] += np.random.uniform(-np.pi / 4, np.pi / 4)
-
+                if collision_point:  # Si hubo colisión, corregimos la posición
+                    x_next, y_next = collision_point
                 
+
+            particle[0], particle[1], particle[2] = x_next, y_next, theta
+
     def resample(self, measurements: list[float]) -> None:
         """Samples a new set of particles.
 
@@ -168,11 +192,12 @@ class ParticleFilter:
 
         indexes = np.zeros(N, dtype=int)
         cumulative_sum = np.cumsum(weights)
-        for k in range(N):
-            u = u1 + k / N
-            indexes[k] = np.searchsorted(cumulative_sum, u)
+        for k in range(1, N):
+            u = u1 + (k - 1) / N
+            indexes[k - 1] = np.searchsorted(cumulative_sum, u)
 
         self._particles = self._particles[indexes]
+        print(len(self._particles))
 
         
     def plot(self, axes, orientation: bool = True):
@@ -251,68 +276,61 @@ class ParticleFilter:
             figure.savefig(file_path)
 
     def _init_particles(
-        self,
-        particle_count: int,
-        global_localization: bool,
-        initial_pose: tuple[float, float, float],
-        initial_pose_sigma: tuple[float, float, float],
-    ) -> np.ndarray:
-        """Draws N random valid particles more efficiently.
+            self,
+            particle_count: int,
+            global_localization: bool,
+            initial_pose: tuple[float, float, float],
+            initial_pose_sigma: tuple[float, float, float],
+        ) -> np.ndarray:
+            """Draws N random valid particles more efficiently.
 
-        The particles are guaranteed to be inside the map and
-        can only have the following orientations [0, pi/2, pi, 3*pi/2].
+            The particles are guaranteed to be inside the map and
+            can only have the following orientations [0, pi/2, pi, 3*pi/2].
 
-        Args:
-            particle_count: Number of particles.
-            global_localization: First localization if True, pose tracking otherwise.
-            initial_pose: Approximate initial robot pose (x, y, theta) for tracking [m, m, rad].
-            initial_pose_sigma: Standard deviation of the initial pose guess [m, m, rad].
+            Args:
+                particle_count: Number of particles.
+                global_localization: First localization if True, pose tracking otherwise.
+                initial_pose: Approximate initial robot pose (x, y, theta) for tracking [m, m, rad].
+                initial_pose_sigma: Standard deviation of the initial pose guess [m, m, rad].
 
-        Returns: A NumPy array of tuples (x, y, theta) [m, m, rad].
-        """
-        particles = np.empty((particle_count, 3), dtype=float)
+            Returns: A NumPy array of tuples (x, y, theta) [m, m, rad].
+            """
+            
+            particles = np.empty((particle_count, 3), dtype=object)
 
-        # TODO: 3.4. Complete the missing function body with your code.
-        # Descomponer los límites del mapa
-        min_x, max_x = self._map.bounds()[0], self._map.bounds()[2]
-        min_y, max_y = self._map.bounds()[1], self._map.bounds()[3]
+            # Descomponer los límites del mapa
+            min_x, min_y, max_x, max_y = self._map.bounds()
+            
 
-        # Orientaciones válidas para las partículas
-        valid_orientations = [0, np.pi/2, np.pi, 3*np.pi/2]
+            # Orientaciones válidas para las partículas
+            valid_orientations = [0, np.pi/2, np.pi, 3*np.pi/2]
 
-        # Pre-generar las posiciones de las partículas en bloque
-        if global_localization:
-            # En localización global, generamos las partículas uniformemente en el mapa
-            x_pos = np.random.uniform(min_x, max_x, particle_count)
-            y_pos = np.random.uniform(min_y, max_y, particle_count)
-        else:
-            # En localización local, generamos alrededor de la pose inicial con ruido normal
-            x_pos = np.random.normal(initial_pose[0], initial_pose_sigma[0], particle_count)
-            y_pos = np.random.normal(initial_pose[1], initial_pose_sigma[1], particle_count)
+            valid_particles = 0
 
-        # Comprobar todas las partículas de una vez
-        valid_indices = np.array([self._map.contains((x, y)) for x, y in zip(x_pos, y_pos)])
+            
+                            
+            if global_localization:
+                while valid_particles < particle_count:
+                    
+                    x = random.uniform(min_x, max_x)
+                    y = random.uniform(min_y, max_y)
+                    theta = random.choice(valid_orientations)
+                    
+                    if self._map.contains((x, y)):
+                        particles[valid_particles] = (x, y, theta)
+                        valid_particles += 1
 
-        # Filtrar partículas válidas
-        particles[:sum(valid_indices), 0] = x_pos[valid_indices]
-        particles[:sum(valid_indices), 1] = y_pos[valid_indices]
+            else:
+                while valid_particles < particle_count:
+                    x = random.gauss(initial_pose[0], initial_pose_sigma[0])
+                    y = random.gauss(initial_pose[1], initial_pose_sigma[1])
+                    theta = random.gauss(initial_pose[2], initial_pose_sigma[2])
 
-        # Generar las orientaciones para las partículas válidas
-        orientations = np.random.choice(valid_orientations, size=sum(valid_indices))
+                    if self._map.contains((x, y)):
+                        particles[valid_particles] = (x, y, theta)
+                        valid_particles += 1
 
-        # Ajustar las partículas si estamos en localización global
-        if global_localization:
-            noise_x = np.random.normal(initial_pose[0], initial_pose_sigma[0], size=sum(valid_indices))
-            noise_y = np.random.normal(initial_pose[1], initial_pose_sigma[1], size=sum(valid_indices))
-            noise_theta = np.random.normal(initial_pose[2], initial_pose_sigma[2], size=sum(valid_indices))
-
-            particles[:sum(valid_indices), 0] += noise_x
-            particles[:sum(valid_indices), 1] += noise_y
-            particles[:sum(valid_indices), 2] = orientations + noise_theta
-        else:
-            particles[:sum(valid_indices), 2] = orientations
-
-        return particles
+            return particles
 
     def _sense(self, particle: tuple[float, float, float]) -> list[float]:
         """Obtains the predicted measurement of every LiDAR ray given the robot's pose.
@@ -335,7 +353,7 @@ class ParticleFilter:
                 
                 z_hat.append(distance)
             else:
-                z_hat.append(float('nan'))
+                z_hat.append(float("nan"))
 
         return z_hat
 
@@ -408,13 +426,19 @@ class ParticleFilter:
 
         """
         probability = 1.0
+        predicted_measurements = self._sense(particle)
 
-        # TODO: 3.8. Complete the missing function body with your code.
-        
-        z_hat = self._sense(particle) #predictions: measurements from the particle
-        for z, z_hat_i in zip(measurements, z_hat):
-            if np.isnan(z_hat_i):
-                z_hat_i = self._sensor_range_min
-            probability *= self._gaussian(z_hat_i, self._sigma_z, z)
+
+        # Calcular la probabilidad para cada medida
+        for z_real, z_pred in zip(measurements[::30], predicted_measurements):
+            # Gestionar medidas fuera de rango (nan)
+            if math.isnan(z_real):
+                z_real = self._sensor_range_min  # Sustituir por el rango mínimo
+            if math.isnan(z_pred):
+                z_pred = self._sensor_range_min  # Sustituir por el rango mínimo
+
+            # Calcular la probabilidad utilizando la distribución gaussiana
+            prob = self._gaussian(z_real, self._sigma_z, z_pred)
+            probability *= prob  # Cambiar '+' a '*' para calcular la probabilidad conjunta
 
         return probability

@@ -68,29 +68,31 @@ class CoppeliaSimNode(LifecycleNode):
 
             # Subscribers
             # TODO: 2.12. Subscribe to /cmd_vel. Connect it with with _next_step_callback.
+            if not enable_localization:
+                self._cmd_vel_subscription = self.create_subscription(
+                    msg_type=TwistStamped,
+                    topic="/cmd_vel",
+                    callback=self._next_step_callback, qos_profile= 10,
+                )
 
-            self._cmd_vel_subscription = self.create_subscription(
-                msg_type=TwistStamped,
-                topic="/cmd_vel",
-                callback=self._next_step_callback, qos_profile= 10,
-            )
+            else:
+            # TODO: 3.3. Sync the /pose and /cmd_vel subscribers if enable_localization is True.
+             #si está localizado
+                #P3
+                self._cmd_vel_subscription = message_filters.Subscriber(
+                    self, TwistStamped, "/cmd_vel", 
+                    qos_profile = 10
+                )
+                self._pose_subscription = message_filters.Subscriber(
+                    self, PoseStamped, "/pose", 
+                    qos_profile = 10
+                )
+                self._subscribers = [self._cmd_vel_subscription, self._pose_subscription]
 
-
-            # # TODO: 3.3. Sync the /pose and /cmd_vel subscribers if enable_localization is True.
-            # if enable_localization: #si está localizado
-            #     #P3
-
-                
-            #     self._pose_subscription = message_filters.Subscriber(
-            #         self, PoseStamped, "/pose", 
-            #         qos_profile = 10
-            #     )
-            #     self._subscribers = [self._pose_subscription, self._cmd_vel_subscription]
-
-            #     self._synchronizer = message_filters.TimeSynchronizer(
-            #         self._subscribers, 10
-            #     )
-            #     self._synchronizer.registerCallback(self._next_step_callback)
+                self._synchronizer = message_filters.ApproximateTimeSynchronizer(
+                    self._subscribers, 10, 20
+                )
+                self._synchronizer.registerCallback(self._next_step_callback)
             
 
             # Publishers
