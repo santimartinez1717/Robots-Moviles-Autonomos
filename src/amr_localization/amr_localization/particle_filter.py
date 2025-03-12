@@ -119,25 +119,33 @@ class ParticleFilter:
         """
         self._iteration += 1
 
-    
-        # TODO: 3.5. Complete the function body with your code.
 
-        #Add noise to the motion model
-        v_noise = np.random.normal(0, self._sigma_v)
-        w_noise = np.random.normal(0, self._sigma_w)
-
-        for i in range(self._particle_count):
-            theta = self._particles[i][2]
-            self._particles[i][0] += (v + v_noise) * self._dt * math.cos(theta)
-            self._particles[i][1] += (v + v_noise) * self._dt * math.sin(theta)
-            self._particles[i][2] += (w + w_noise) * self._dt
+        for i, particle in enumerate(self._particles):
+            # Ruido en la velocidad lineal (v) y angular (w)
+            noise_v = np.random.normal(0, self._sigma_v)  # Ruido en la velocidad lineal
+            noise_w = np.random.normal(0, self._sigma_w)  # Ruido en la velocidad angular
+            
+            # Velocidades con ruido
+            v_noisy = max(0, v + noise_v)  # Evita movimientos hacia atrás
+            w_noisy = w + noise_w
 
 
-        # Normalize the orientation of the particles
-        for i in range(self._particle_count):
-            self._particles[i][2] = (self._particles[i][2] + np.pi) % (2 * np.pi) - np.pi
+            # Actualización de la orientación (theta)
+            particle[2]  = (particle[2] + w_noisy * self._dt + np.pi) % (2 * np.pi) - np.pi
 
 
+
+            # Actualización de la posición (x, y)
+            particle[0] += v_noisy * np.cos(particle[2]) * self._dt
+            particle[1] += v_noisy * np.sin(particle[2]) * self._dt
+
+            # Corregir la posición si la partícula ha salido del entorno
+            if not self._map.contains((particle[0], particle[1])):
+
+                particle[0], particle[1] = self._map.check_collision((particle[0], particle[1]))
+                particle[2] += np.random.uniform(-np.pi / 4, np.pi / 4)
+
+                
     def resample(self, measurements: list[float]) -> None:
         """Samples a new set of particles.
 
@@ -319,10 +327,15 @@ class ParticleFilter:
 
         # TODO: 3.6. Complete the missing function body with your code.
         
-        rays = self._lidar_rays(particle, range(0, 360, 45))  # 8 uniformly spaced rays
+        rays = self._lidar_rays(particle, range(0, 240, 30))  # 8 uniformly spaced rays
         for ray in rays:
             intersection,  distance = self._map.check_collision(ray, True)
-            z_hat.append(distance)
+
+            if intersection:
+                
+                z_hat.append(distance)
+            else:
+                z_hat.append(float('nan'))
 
         return z_hat
 
