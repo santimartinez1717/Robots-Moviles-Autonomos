@@ -93,7 +93,7 @@ class ParticleFilterNode(LifecycleNode):
             
             self._pose_publisher = self.create_publisher(PoseStamped, "pose", 10)
             self._localized_publisher = self.create_publisher(PoseStamped, "localized_pose", 10)
-
+            
             
             # Subscribers
             scan_qos_profile = QoSProfile(

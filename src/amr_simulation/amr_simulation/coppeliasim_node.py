@@ -295,8 +295,8 @@ class CoppeliaSimNode(LifecycleNode):
         msg = LaserScan()
         msg.header.stamp = self.get_clock().now().to_msg()  # metadatos
 
-        msg.ranges = z_scan  # distance data
-        self._laser_scan_publisher.publish(msg)  # publish the message
+        msg.ranges = z_scan  
+        self._laser_scan_publisher.publish(msg)  
 
 
 def main(args=None):

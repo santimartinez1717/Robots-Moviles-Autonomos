@@ -80,46 +80,39 @@ class ParticleFilter:
             pose: Robot pose estimate (x, y, theta) [m, m, rad].
 
         """
+
+        # TODO: 3.10. Complete the missing function body with your code.
         localized: bool = False
         pose: tuple[float, float, float] = (float("inf"), float("inf"), float("inf"))
         
         if len(self._particles) == 0:
             return localized, pose
 
-        # Extraer posiciones (x, y) de las partículas
+
+        #Definir las posiciones de las partículas
         particle_positions = np.array([[p[0], p[1]] for p in self._particles])
 
-        # Aplicar DBSCAN para encontrar clusters de partículas
-        clustering = DBSCAN(eps=0.1, min_samples=10, algorithm='kd_tree', n_jobs = -1).fit(particle_positions)
+        #Clustering de las partículas
+        clustering = DBSCAN(eps=0.2, min_samples=10)
+        clustering.fit(particle_positions)
         labels = clustering.labels_
 
-        # Contar el número de clusters detectados
-        unique_labels = set(labels)
-        unique_labels.discard(-1)  # Eliminar ruido (label = -1)
+        cluster_labels = set(labels)
 
-        if len(unique_labels) == 1:  # Solo un cluster detectado
-            print("solo un cluster")
+        if len(cluster_labels) == 1: 
             localized = True
 
-            # Obtener partículas del cluster principal
-            main_cluster = self._particles[labels == list(unique_labels)[0]]
+            main_cluster_label = list(cluster_labels)[0]
+            main_cluster = self._particles[labels == main_cluster_label]
 
-            # Calcular centroide del cluster
-            x_mean = np.mean(main_cluster[:, 0])
-            y_mean = np.mean(main_cluster[:, 1])
+            particles_array = np.array(self._particles)
+            angles = particles_array[:, 2] 
+            pose = (  # centroid of the cluster as pose estimate
+                np.mean(particles_array[:, 0]),
+                np.mean(particles_array[:, 1]),
+                np.mean(angles) % (2 * np.pi) #asegurar que este entre [0,2pi]
+            )
 
-            # thetas = np.array([p[2] for p in main_cluster])
-            theta_mean = np.mean(main_cluster[:,2])  # Promedio directo de los ángulos
-
-            # Asegurar que el ángulo esté en el rango [0, 2π]
-            if theta_mean < 0:
-                theta_mean += 2 * np.pi
-            elif theta_mean >= 2 * np.pi:
-                theta_mean -= 2 * np.pi
-
-            pose = (x_mean, y_mean, theta_mean)
-
-            # Reducimos el número de partículas para mejorar eficiencia
             self._particles = main_cluster[np.random.choice(len(main_cluster), 100, replace=True)]
 
         return localized, pose
@@ -431,14 +424,14 @@ class ParticleFilter:
 
         # Calcular la probabilidad para cada medida
         for z_real, z_pred in zip(measurements[::30], predicted_measurements):
+            
             # Gestionar medidas fuera de rango (nan)
             if math.isnan(z_real):
                 z_real = self._sensor_range_min  # Sustituir por el rango mínimo
             if math.isnan(z_pred):
                 z_pred = self._sensor_range_min  # Sustituir por el rango mínimo
 
-            # Calcular la probabilidad utilizando la distribución gaussiana
             prob = self._gaussian(z_real, self._sigma_z, z_pred)
-            probability *= prob  # Cambiar '+' a '*' para calcular la probabilidad conjunta
+            probability *= prob  
 
         return probability
