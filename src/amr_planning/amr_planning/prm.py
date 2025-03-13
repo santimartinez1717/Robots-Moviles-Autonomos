@@ -82,7 +82,9 @@ class PRM:
         ancestors: dict[tuple[float, float], tuple[float, float]] = {}  # {(x, y: (x_prev, y_prev)}
 
         # TODO: 4.3. Complete the function body (i.e., replace the code below).
+
         path: list[tuple[float, float]] = []
+
 
         return path
         
@@ -232,7 +234,13 @@ class PRM:
         Returns: A modified graph with lists of connected nodes as values.
 
         """
-        # TODO: 4.2. Complete the missing function body with your code.
+        # 4.2. Complete the missing function body with your code.
+        for node1 in graph.keys():
+            for node2 in graph.keys():
+                if node1 != node2 and not self._map.crosses(node1, node2):
+                    distance = np.sqrt(np.sum(np.array(node1) - np.array(node2)))
+                    if distance <= connection_distance:
+                        graph[node1].append(node2)
         
         return graph
 
@@ -276,9 +284,29 @@ class PRM:
             Key elements are rounded to a fixed number of decimal places to allow comparisons.
 
         """
+        # 4.1. Complete the missing function body with your code.
+
         graph: dict[tuple[float, float], list[tuple[float, float]]] = {}
 
-        # TODO: 4.1. Complete the missing function body with your code.
+        if use_grid:
+            for x in np.arange(self._map.x_min, self._map.x_max, grid_size):
+                for y in np.arange(self._map.y_min, self._map.y_max, grid_size):
+                    
+                    if self._map.contains((x, y)):
+                        graph[(round(x, 2), round(y, 2))] = []
+            
+        else:
+            count = 0
+
+            while count < node_count:
+                x = random.uniform(self._map.x_min, self._map.x_max)
+                y = random.uniform(self._map.y_min, self._map.y_max)
+
+                if self._map.contains((x, y)):
+                    graph[(round(x, 2), round(y, 2))] = []
+                    count += 1
+
+            
         
         return graph
 
