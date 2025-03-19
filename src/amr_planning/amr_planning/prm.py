@@ -85,6 +85,8 @@ class PRM:
 
         path: list[tuple[float, float]] = []
 
+        
+
 
         return path
         
