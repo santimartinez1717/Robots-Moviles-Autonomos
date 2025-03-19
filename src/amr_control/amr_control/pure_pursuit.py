@@ -1,3 +1,5 @@
+import numpy as np
+
 class PurePursuit:
     """Class to follow a path using a simple pure pursuit controller."""
 
@@ -26,9 +28,11 @@ class PurePursuit:
             w: Angular velocity [rad/s].
 
         """
-        # TODO: 4.11. Complete the function body with your code (i.e., compute v and w).
-        v = 0.0
-        w = 0.0
+        # 4.11. Complete the function body with your code (i.e., compute v and w).
+        closest_xy, closest_idx = self._find_closest_point(x, y)
+        target_xy = self._find_target_point(closest_xy, closest_idx)
+        
+
         
         return v, w
 
@@ -54,10 +58,10 @@ class PurePursuit:
             int: Index of the path point found.
 
         """
-        # TODO: 4.9. Complete the function body (i.e., find closest_xy and closest_idx).
-        closest_xy = (0.0, 0.0)
-        closest_idx = 0
-
+        # 4.9. Complete the function body (i.e., find closest_xy and closest_idx).
+        closest_xy = min(self._path, key=lambda node: np.linealg.norm(np.array(node) - np.array((x, y))))
+        closest_idx = self._path.index(closest_xy)
+    
         return closest_xy, closest_idx
         
     def _find_target_point(
@@ -73,8 +77,13 @@ class PurePursuit:
             tuple[float, float]: (x, y) coordinates of the target point [m].
 
         """
-        # TODO: 4.10. Complete the function body with your code (i.e., determine target_xy).
-        target_xy = (0.0, 0.0)
+        # 4.10. Complete the function body with your code (i.e., determine target_xy).
+
+        target_xy = self._path[origin_idx]
+        for i in range(origin_idx, len(self._path)):
+            if np.linalg.norm(np.array(self._path[i]) - np.array(origin_xy)) > self._lookahead_distance:
+                target_xy = self._path[i]
+                break
 
         return target_xy
         

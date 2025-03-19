@@ -50,7 +50,7 @@ class WallFollowerNode(LifecycleNode):
             scan_profile = QoSProfile(history=QoSHistoryPolicy.KEEP_LAST, depth=10, reliability = QoSReliabilityPolicy.BEST_EFFORT, durability = QoSDurabilityPolicy.VOLATILE)
             #
             # Subscribers
-            # TODO: 2.7. Synchronize _compute_commands_callback with /odometry and /scan.
+            # 2.7. Synchronize _compute_commands_callback with /odometry and /scan.
 
             self._subscribers: list[message_filters.Subscriber] = []
 
@@ -69,10 +69,14 @@ class WallFollowerNode(LifecycleNode):
 
             ts.registerCallback(self._compute_commands_callback)
 
-            # TODO: 4.12. Add /pose to the synced subscriptions only if localization is enabled.
+            # 4.12. Add /pose to the synced subscriptions only if localization is enabled.
+            if enable_localization:
+                self._subscribers.append(
+                    message_filters.Subscriber(self, PoseStamped, "/pose")
+                )
 
             # Publishers
-            # TODO: 2.10. Create the /cmd_vel velocity commands publisher (TwistStamped message).
+            # 2.10. Create the /cmd_vel velocity commands publisher (TwistStamped message).
 
             self._cmd_publisher = self.create_publisher(TwistStamped, "/cmd_vel", 10)
 
@@ -114,11 +118,11 @@ class WallFollowerNode(LifecycleNode):
         """
         self.get_logger().info("Received messages.")
         if not pose_msg.localized:
-            # TODO: 2.8. Parse the odometry from the Odometry message (i.e., read z_v and z_w).
+            #  2.8. Parse the odometry from the Odometry message (i.e., read z_v and z_w).
             z_v: float = odom_msg.twist.twist.linear.x
             z_w: float = odom_msg.twist.twist.angular.z
 
-            # TODO: 2.9. Parse LiDAR measurements from the LaserScan message (i.e., read z_scan).
+            # 2.9. Parse LiDAR measurements from the LaserScan message (i.e., read z_scan).
             z_scan: list[float] = scan_msg.ranges
 
             # Execute wall follower

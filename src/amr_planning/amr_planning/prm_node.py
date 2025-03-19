@@ -87,7 +87,8 @@ class PRMNode(LifecycleNode):
             self.get_logger().info(f"Roadmap creation time: {roadmap_creation_time:1.3f} s")
 
             # Publishers
-            # TODO: 4.6. Create the /path publisher (Path message).
+            # 4.6. Create the /path publisher (Path message).
+            self._publisher_path = self.create_publisher(Path, "path", 10)
             
             # Subscribers
             self._subscriber_pose = self.create_subscription(
@@ -152,8 +153,19 @@ class PRMNode(LifecycleNode):
             path: Smoothed path (initial location first) in (x, y) format.
 
         """
-        # TODO: 4.7. Complete the function body with your code (i.e., replace the pass statement).
-        pass
+        # : 4.7. Complete the function body with your code (i.e., replace the pass statement).
+        path_msg = Path()
+        path_msg.header.stamp = self.get_clock().now().to_msg()
+        path_msg.header.frame_id = "map"
+        path_msg.poses = []
+
+        for (x, y) in path:
+            node = PoseStamped()
+            node.pose.position.x = x
+            node.pose.position.y = y
+            path_msg.poses.append(node)
+
+        self._publisher_path.publish(path_msg)
         
 
 def main(args=None):

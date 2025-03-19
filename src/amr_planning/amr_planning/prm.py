@@ -1,9 +1,12 @@
 import datetime
+from flask import g
 import numpy as np
 import os
 import pytz
 import random
 import time
+
+from torch import preserve_format
 
 # This try-except enables local debugging of the PRM class
 try:
@@ -81,12 +84,44 @@ class PRM:
 
         ancestors: dict[tuple[float, float], tuple[float, float]] = {}  # {(x, y: (x_prev, y_prev)}
 
-        # TODO: 4.3. Complete the function body (i.e., replace the code below).
+        open = {}
+        closed = set()
+
+        # 4.3. Complete the function body (i.e., replace the code below).
+
 
         path: list[tuple[float, float]] = []
 
         
 
+
+
+        start_node = min(self._graph.keys(), key=lambda k: np.linalg.norm(np.array(k) - np.array(start)))
+        goal_node = min(self._graph.keys(), key=lambda k: np.linalg.norm(np.array(k) - np.array(goal)))
+        
+        open[start_node] = (np.linalg.norm(np.array(start_node) - np.array(goal_node)), 0)
+
+        while goal_node not in closed:
+
+            node = min(open ,key=lambda k: open.get(k)[0])
+            
+            g = open[node][1]
+
+            open.pop(node)
+            
+            for neighbor in self._graph[node]:
+                if neighbor not in closed:
+                    neighbor_dist = np.linalg.norm(np.array(node) - np.array(neighbor))
+                    if neighbor not in open or g + neighbor_dist < open[neighbor][1]:
+                        dist = np.linalg.norm(np.array(neighbor) - np.array(goal_node))
+                        open[neighbor] = (g + neighbor_dist + dist, g + neighbor_dist)
+                        ancestors[neighbor] = node
+                        
+
+            closed.add(node)
+
+
+        path = self._reconstruct_path(start_node, goal_node, ancestors)
 
         return path
         
@@ -112,10 +147,38 @@ class PRM:
         Returns: Smoothed path (initial location first) in (x, y) format.
 
         """
-        # TODO: 4.5. Complete the function body (i.e., load smoothed_path).
+        # 4.5. Complete the function body (i.e., load smoothed_path).
         smoothed_path: list[tuple[float, float]] = []
-        
+        # Add intermediate points if needed
+        if additional_smoothing_points > 0:
+            new_path = []
+            for i in range(len(path) - 1):
+                new_path.append(path[i])
+                for j in range(1, additional_smoothing_points + 1):
+                    intermediate_point = (
+                        path[i][0] + (path[i + 1][0] - path[i][0]) * j / (additional_smoothing_points + 1),
+                        path[i][1] + (path[i + 1][1] - path[i][1]) * j / (additional_smoothing_points + 1),
+                    )
+                    new_path.append(intermediate_point)
+            new_path.append(path[-1])
+            path = new_path
+
+        smoothed_path = path[:]
+        change = tolerance
+        while change >= tolerance:
+            change = 0.0
+            for i in range(1, len(path) - 1):
+                for j in range(2):
+                    aux = smoothed_path[i][j]
+                    smoothed_path[i] = (
+                        smoothed_path[i][0] + data_weight * (path[i][0] - smoothed_path[i][0]) + smooth_weight * (smoothed_path[i - 1][0] + smoothed_path[i + 1][0] - 2.0 * smoothed_path[i][0]),
+                        smoothed_path[i][1] + data_weight * (path[i][1] - smoothed_path[i][1]) + smooth_weight * (smoothed_path[i - 1][1] + smoothed_path[i + 1][1] - 2.0 * smoothed_path[i][1])
+                    )
+                    change += abs(aux - smoothed_path[i][j])
+
         return smoothed_path
+
+        
 
     def plot(
         self,
@@ -331,7 +394,13 @@ class PRM:
         """
         path: list[tuple[float, float]] = []
 
-        # TODO: 4.4. Complete the missing function body with your code.
+        # 4.4. Complete the missing function body with your code.
+
+        ancestor = ancestors[goal]
+
+        while ancestor != start:
+            path.append(ancestor)
+            ancestor = ancestors[ancestor]
         
         return path
 
