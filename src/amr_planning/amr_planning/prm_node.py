@@ -153,7 +153,7 @@ class PRMNode(LifecycleNode):
             path: Smoothed path (initial location first) in (x, y) format.
 
         """
-        # : 4.7. Complete the function body with your code (i.e., replace the pass statement).
+        # TODO: 4.7. Complete the function body with your code (i.e., replace the pass statement).
         path_msg = Path()
         path_msg.header.stamp = self.get_clock().now().to_msg()
         path_msg.header.frame_id = "map"

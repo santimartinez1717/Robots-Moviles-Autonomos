@@ -16,6 +16,10 @@ except ImportError:
 
 from matplotlib import pyplot as plt
 
+class PathNotFound(Exception):
+    """Raised when a path to the goal cannot be found."""
+
+    pass
 
 class PRM:
     """Class to plan a path to a given destination using probabilistic roadmaps (PRM)."""
@@ -94,34 +98,42 @@ class PRM:
 
         
 
+        #open {(x, y): (f, g)}: donde f = g + h, g = distancia acumulada desde el nodo inicial, h = distancia al nodo objetivo
 
-
+        #Find closest nodes to start and goal
         start_node = min(self._graph.keys(), key=lambda k: np.linalg.norm(np.array(k) - np.array(start)))
         goal_node = min(self._graph.keys(), key=lambda k: np.linalg.norm(np.array(k) - np.array(goal)))
         
-        open[start_node] = (np.linalg.norm(np.array(start_node) - np.array(goal_node)), 0)
+        open[start_node] = (np.linalg.norm(np.array(start_node) - np.array(goal_node)), 0) #f = h, g = 0
 
-        while goal_node not in closed:
+        while goal_node not in closed: #mientras que no se alcance el nodo objetivo
 
-            node = min(open ,key=lambda k: open.get(k)[0])
+            node = min(open, key=lambda k: open.get(k)[0]) #nodo con menor f (heuristica)
             
-            g = open[node][1]
+            g = open[node][1] #distancia acumulada desde el nodo inicial
 
             open.pop(node)
             
             for neighbor in self._graph[node]:
-                if neighbor not in closed:
+                if neighbor not in closed: #si el vecino no ha sido explorado
                     neighbor_dist = np.linalg.norm(np.array(node) - np.array(neighbor))
-                    if neighbor not in open or g + neighbor_dist < open[neighbor][1]:
+
+                    if (neighbor not in open) or (g + neighbor_dist < open[neighbor][1]): 
+                        #si el vecino no esta en la lista de nodos abiertos o si la distancia al vecino es menor que la que del vecino al origen
+                        #de esta manera, nos aseguramos que siempre avanzamos
+
                         dist = np.linalg.norm(np.array(neighbor) - np.array(goal_node))
-                        open[neighbor] = (g + neighbor_dist + dist, g + neighbor_dist)
-                        ancestors[neighbor] = node
+                        open[neighbor] = (g + neighbor_dist + dist, g + neighbor_dist) #h =g+h (h = dist(nodo, objetivo)), g = g + dist(nodo, vecino)
+                        ancestors[neighbor] = node #ahora el vecino tiene como ancestro al nodo actual
                         
 
-            closed.add(node)
+            closed.add(node) #explorado
 
 
-        path = self._reconstruct_path(start_node, goal_node, ancestors)
+        try:
+            path = self._reconstruct_path(start_node, goal_node, ancestors)
+        except PathNotFound:
+            raise PathNotFound("Failed to reconstruct path")
 
         return path
         
@@ -302,11 +314,11 @@ class PRM:
         # 4.2. Complete the missing function body with your code.
         for node1 in graph.keys():
             for node2 in graph.keys():
-                if node1 != node2 and not self._map.crosses(node1, node2):
-                    distance = np.sqrt(np.sum(np.array(node1) - np.array(node2)))
+                if node1 != node2 and not self._map.crosses((node1, node2)):
+                    distance = np.sqrt(np.sum((np.array(node1) - np.array(node2))**2))
                     if distance <= connection_distance:
                         graph[node1].append(node2)
-        
+        print(graph)
         return graph
 
     def _create_graph(
@@ -350,12 +362,13 @@ class PRM:
 
         """
         # 4.1. Complete the missing function body with your code.
+        min_x, min_y, max_x, max_y = self._map.bounds()
 
         graph: dict[tuple[float, float], list[tuple[float, float]]] = {}
 
         if use_grid:
-            for x in np.arange(self._map.x_min, self._map.x_max, grid_size):
-                for y in np.arange(self._map.y_min, self._map.y_max, grid_size):
+            for x in np.arange(min_x, max_x, grid_size):
+                for y in np.arange(min_y, max_y, grid_size):
                     
                     if self._map.contains((x, y)):
                         graph[(round(x, 2), round(y, 2))] = []
@@ -364,13 +377,12 @@ class PRM:
             count = 0
 
             while count < node_count:
-                x = random.uniform(self._map.x_min, self._map.x_max)
-                y = random.uniform(self._map.y_min, self._map.y_max)
+                x = random.uniform(min_x, max_x)
+                y = random.uniform(min_y, max_y)
 
                 if self._map.contains((x, y)):
                     graph[(round(x, 2), round(y, 2))] = []
                     count += 1
-
             
         
         return graph
@@ -402,7 +414,7 @@ class PRM:
             path.append(ancestor)
             ancestor = ancestors[ancestor]
         
-        return path
+        return [start] + path[::-1] + [goal]
 
 
 if __name__ == "__main__":
