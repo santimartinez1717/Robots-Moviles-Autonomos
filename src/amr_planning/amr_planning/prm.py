@@ -318,7 +318,6 @@ class PRM:
                     distance = np.sqrt(np.sum((np.array(node1) - np.array(node2))**2))
                     if distance <= connection_distance:
                         graph[node1].append(node2)
-        print(graph)
         return graph
 
     def _create_graph(

@@ -36,11 +36,13 @@ class PurePursuit:
         alpha = np.arctan2(target_xy[1] - y, target_xy[0] - x) - theta
         alpha = (alpha + np.pi) % (2 * np.pi) - np.pi
 
-        
-
-
-        v = self._lookahead_distance * np.cos(alpha)
-        w = (2 * v * np.sin(alpha)) / self._lookahead_distance
+        # If the robot is not reasonably aligned with the path, rotate in place
+        if abs(alpha) > np.pi / 6:  # Threshold angle (30 degrees)
+            v = 0.0  # No linear velocity
+            w = 2.0 * alpha  # Proportional angular velocity
+        else:
+            v = self._lookahead_distance * np.cos(alpha)
+            w = (2 * v * np.sin(alpha)) / self._lookahead_distance
         
         return v, w
 
@@ -92,6 +94,7 @@ class PurePursuit:
             if np.linalg.norm(np.array(self._path[i]) - np.array(origin_xy)) > self._lookahead_distance:
                 target_xy = self._path[i]
                 break
-
+        
+        # En caso de que no haya un punto exactamente a esa distancia, se toma el punto más cercano
         return target_xy
         
