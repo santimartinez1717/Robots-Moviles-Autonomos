@@ -31,8 +31,16 @@ class PurePursuit:
         # 4.11. Complete the function body with your code (i.e., compute v and w).
         closest_xy, closest_idx = self._find_closest_point(x, y)
         target_xy = self._find_target_point(closest_xy, closest_idx)
+
+        # Compute the angle between the robot and the target point
+        alpha = np.arctan2(target_xy[1] - y, target_xy[0] - x) - theta
+        alpha = (alpha + np.pi) % (2 * np.pi) - np.pi
+
         
 
+
+        v = self._lookahead_distance * np.cos(alpha)
+        w = (2 * v * np.sin(alpha)) / self._lookahead_distance
         
         return v, w
 
@@ -59,10 +67,10 @@ class PurePursuit:
 
         """
         # 4.9. Complete the function body (i.e., find closest_xy and closest_idx).
-        closest_xy = min(self._path, key=lambda node: np.linealg.norm(np.array(node) - np.array((x, y))))
-        closest_idx = self._path.index(closest_xy)
+        closest_node = min(self._path, key=lambda node: np.linealg.norm(np.array(node) - np.array((x, y))))
+        closest_idx = self._path.index(closest_node)
     
-        return closest_xy, closest_idx
+        return closest_node, closest_idx
         
     def _find_target_point(
         self, origin_xy: tuple[float, float], origin_idx: int
