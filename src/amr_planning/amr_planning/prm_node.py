@@ -119,6 +119,8 @@ class PRMNode(LifecycleNode):
             pose_msg: Message containing the robot pose estimate.
 
         """
+        self.get_logger().info(f"Localized: {pose_msg.localized}, Previous Localized: {self._localized}") 
+        
         if pose_msg.localized and not self._localized:
             start = (pose_msg.pose.position.x, pose_msg.pose.position.y)
 
