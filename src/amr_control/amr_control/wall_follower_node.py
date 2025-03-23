@@ -70,11 +70,11 @@ class WallFollowerNode(LifecycleNode):
             ts.registerCallback(self._compute_commands_callback)
 
             # 4.12. Add /pose to the synced subscriptions only if localization is enabled.
-            if enable_localization:
+            """if enable_localization:
                 self._subscribers.append(
                     message_filters.Subscriber(self, PoseStamped, "/pose")
                 )
-
+"""
             # Publishers
             # 2.10. Create the /cmd_vel velocity commands publisher (TwistStamped message).
 

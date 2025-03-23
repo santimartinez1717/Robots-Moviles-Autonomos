@@ -36,6 +36,8 @@ class PurePursuitNode(LifecycleNode):
             lookahead_distance = (
                 self.get_parameter("lookahead_distance").get_parameter_value().double_value
             )
+            self.declare_parameter("path_received", False)  # This parameter ensures the path is received before computing commands
+            self.path_recieved = self.get_parameter("path_received").get_parameter_value().bool_value
 
             # Subscribers
             self._subscriber_pose = self.create_subscription(
@@ -75,7 +77,7 @@ class PurePursuitNode(LifecycleNode):
             pose_msg: Message containing the estimated robot pose.
 
         """
-        if pose_msg.localized:
+        if pose_msg.localized and self.path_recieved: 
             # Parse pose
             x = pose_msg.pose.position.x
             y = pose_msg.pose.position.y
@@ -98,10 +100,14 @@ class PurePursuitNode(LifecycleNode):
 
         Args:
             path_msg: Message containing the (smoothed) path.
-
         """
         # TODO 4.8. Complete the function body with your code (i.e., replace the pass statement).
-        self._pure_pursuit.path = [(pose.position.x, pose.position.y) for pose in path_msg.poses]
+        self.get_logger().info("Path received correctly.")
+        self._pure_pursuit.path = [(pose.pose.position.x, pose.pose.position.y) for pose in path_msg.poses]
+        self.get_logger().info(f"Current path: {self._pure_pursuit.path}")
+        self.path_recieved = True
+
+
         
     def _publish_velocity_commands(self, v: float, w: float) -> None:
         """Publishes velocity commands in a geometry_msgs.msg.TwistStamped message.

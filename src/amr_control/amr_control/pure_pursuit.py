@@ -88,6 +88,8 @@ class PurePursuit:
 
         """
         # 4.10. Complete the function body with your code (i.e., determine target_xy).
+        
+        # Find carrot point at the lookahead distance
 
         target_xy = self._path[origin_idx]
         for i in range(origin_idx, len(self._path)):
@@ -95,6 +97,8 @@ class PurePursuit:
                 target_xy = self._path[i]
                 break
         
-        # En caso de que no haya un punto exactamente a esa distancia, se toma el punto más cercano
+        # If no point is found at the lookahead distance, take the last point in the path
+        if np.linalg.norm(target_xy - origin_xy) <= self._lookahead_distance:
+            target_xy = self._path[-1]
         return target_xy
         

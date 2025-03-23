@@ -166,7 +166,7 @@ class PRMNode(LifecycleNode):
             node.pose.position.x = x
             node.pose.position.y = y
             path_msg.poses.append(node)
-
+        
         self._publisher_path.publish(path_msg)
         
 
