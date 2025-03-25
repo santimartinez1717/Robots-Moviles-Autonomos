@@ -74,49 +74,47 @@ class ParticleFilter:
         Adapts the amount of particles depending on the number of clusters during localization.
         100 particles are kept for pose tracking.
 
-        
         Returns:
             localized: True if the pose estimate is valid.
             pose: Robot pose estimate (x, y, theta) [m, m, rad].
 
         """
-
-        # TODO: 3.10. Complete the missing function body with your code.
         localized: bool = False
         pose: tuple[float, float, float] = (float("inf"), float("inf"), float("inf"))
-        
+
         if len(self._particles) == 0:
             return localized, pose
 
+        # Extract particle positions
+        particle_positions = np.array([[p[0], p[1], math.cos(p[2]), math.sin(p[2])] for p in self._particles])
 
-        #Definir las posiciones de las partículas
-        particle_positions = np.array([[p[0], p[1]] for p in self._particles])
-
-        #Clustering de las partículas
+        # Perform DBSCAN clustering
         clustering = DBSCAN(eps=0.2, min_samples=10)
-        clustering.fit(particle_positions)
-        labels = clustering.labels_
+        labels = clustering.fit_predict(particle_positions)
 
         cluster_labels = set(labels)
 
-        if len(cluster_labels) == 1: 
+        if len(cluster_labels) == 1:  # Only one valid cluster
             localized = True
 
             main_cluster_label = list(cluster_labels)[0]
-            main_cluster = self._particles[labels == main_cluster_label]
+            main_cluster = np.array([self._particles[i] for i in range(len(labels)) if labels[i] == main_cluster_label])
 
-            particles_array = np.array(self._particles)
-            angles = particles_array[:, 2] 
-            pose = (  # centroid of the cluster as pose estimate
-                np.mean(particles_array[:, 0]),
-                np.mean(particles_array[:, 1]),
-                np.mean(angles) % (2 * np.pi) #asegurar que este entre [0,2pi]
-            )
+            # Compute the centroid of the cluster
+            x_mean = np.mean(main_cluster[:, 0])
+            y_mean = np.mean(main_cluster[:, 1])
 
+            # Compute the mean angle using cos and sin
+            cos_mean = np.mean(np.cos([p[2] for p in main_cluster]))
+            sin_mean = np.mean(np.sin([p[2] for p in main_cluster]))
+            theta_mean = math.atan2(sin_mean, cos_mean)
+
+            pose = (x_mean, y_mean, theta_mean)
+
+            # Resample particles for pose tracking
             self._particles = main_cluster[np.random.choice(len(main_cluster), 100, replace=True)]
 
         return localized, pose
-
 
 
     def move(self, v: float, w: float) -> None:

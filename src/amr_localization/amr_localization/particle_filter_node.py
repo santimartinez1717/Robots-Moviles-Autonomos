@@ -217,7 +217,9 @@ class ParticleFilterNode(LifecycleNode):
             pose_msg.pose.position.y = y_h
             pose_msg.pose.position.z = 0.0
             
-            qx, qy, qz, qw = euler2quat(0, 0, theta_h)
+            self.get_logger().info(f"Pose: x = {x_h:.3f} m, y = {y_h:.3f} m, theta = {math.degrees(theta_h):.3f} deg")
+
+            qw, qx, qy, qz = euler2quat(0, 0, theta_h)
             pose_msg.pose.orientation.x = qx
             pose_msg.pose.orientation.y = qy
             pose_msg.pose.orientation.z = qz

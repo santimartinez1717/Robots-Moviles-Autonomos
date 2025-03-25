@@ -77,23 +77,33 @@ class PurePursuitNode(LifecycleNode):
             pose_msg: Message containing the estimated robot pose.
 
         """
-        if pose_msg.localized and self.path_recieved: 
-            # Parse pose
-            x = pose_msg.pose.position.x
-            y = pose_msg.pose.position.y
-            quat_w = pose_msg.pose.orientation.w
-            quat_x = pose_msg.pose.orientation.x
-            quat_y = pose_msg.pose.orientation.y
-            quat_z = pose_msg.pose.orientation.z
-            _, _, theta = quat2euler((quat_w, quat_x, quat_y, quat_z))
-            theta %= 2 * math.pi
+        self.last_pose_msg = pose_msg
+        if pose_msg.localized:
+            if self.path_recieved: 
 
-            # Execute pure pursuit
-            v, w = self._pure_pursuit.compute_commands(x, y, theta)
-            self.get_logger().info(f"Commands: v = {v:.3f} m/s, w = {w:+.3f} rad/s")
+                self.get_logger().info(f"Received messages: {pose_msg}")
+                # Parse pose
+                x = pose_msg.pose.position.x
+                y = pose_msg.pose.position.y
+                quat_w = pose_msg.pose.orientation.w
+                quat_x = pose_msg.pose.orientation.x
+                quat_y = pose_msg.pose.orientation.y
+                quat_z = pose_msg.pose.orientation.z
+                _, _, theta = quat2euler((quat_w, quat_x, quat_y, quat_z))
+                theta %= 2 * math.pi
 
-            # Publish
-            self._publish_velocity_commands(v, w)
+                # Execute pure pursuit
+                v, w = self._pure_pursuit.compute_commands(x, y, theta)
+                self.get_logger().info(f"Commands: v = {v:.3f} m/s, w = {w:+.3f} rad/s")
+
+                # Publish
+                self._publish_velocity_commands(v, w)
+            else:
+                self.get_logger().info("Path not received yet.")
+                v = 0.0
+                w = 0.0
+                self._publish_velocity_commands(v, w)
+        
 
     def _path_callback(self, path_msg: Path):
         """Subscriber callback. Saves the path the pure pursuit controller has to follow.
@@ -103,8 +113,11 @@ class PurePursuitNode(LifecycleNode):
         """
         # TODO 4.8. Complete the function body with your code (i.e., replace the pass statement).
         self.get_logger().info("Path received correctly.")
-        self._pure_pursuit.path = [(pose.pose.position.x, pose.pose.position.y) for pose in path_msg.poses]
-        self.get_logger().info(f"Current path: {self._pure_pursuit.path}")
+        self._pure_pursuit.path = [
+            (point.pose.position.x,
+             point.pose.position.y)
+            for point in path_msg.poses
+        ]
         self.path_recieved = True
 
 
