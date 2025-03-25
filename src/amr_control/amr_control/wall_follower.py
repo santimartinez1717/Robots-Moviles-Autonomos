@@ -16,14 +16,14 @@ class WallFollower:
         self.integral_error = 0.0
         self.last_error = 0.0
         self.safety_dist = 0.22  # Distancia mínima de seguridad a la pared
-        PRED_VEL = 0.15  # Velocidad lineal deseada [m/s]
-        PRED_ANG = 0.0  # Velocidad angular deseada [rad/s]
+        self.PRED_VEL = 0.15  # Velocidad lineal deseada [m/s]
+        self.PRED_ANG = 0.0  # Velocidad angular deseada [rad/s]
 
         # Estados de giro y callejón sin salida
-        self.turn_left_state = False
-        self.turn_right_state = False
-        self.dead_end_state = False
-        self.rotation_completed = 0.0
+        self.turn_left_mode = False
+        self.turn_right_mode = False
+        self.dead_end_mode = False
+
 
     def compute_commands(self, z_scan: list[float], z_v: float, z_w: float) -> tuple[float, float]:
         """Algoritmo de seguimiento de paredes.
@@ -107,4 +107,4 @@ class WallFollower:
             w = self.Kp * error + self.Kd * derivative + self.Ki * self.integral_error
             self.last_error = error
 
-        return v, w
+        return v,w
