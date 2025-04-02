@@ -93,10 +93,7 @@ class PRM:
 
         # 4.3. Complete the function body (i.e., replace the code below).
 
-
         path: list[tuple[float, float]] = []
-
-        
 
         #open {(x, y): (f, g)}: donde f = g + h, g = distancia acumulada desde el nodo inicial, h = distancia al nodo objetivo
 
