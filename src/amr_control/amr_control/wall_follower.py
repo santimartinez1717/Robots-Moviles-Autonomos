@@ -10,14 +10,15 @@ class WallFollower:
         """
         self.dt: float = dt
         self.pred_dist = 0.2  # Distancia deseada a la pared [m]
-        self.Kp = 2  # Ganancia proporcional para correcciones de trayectoria
-        self.Kd = 1  # Ganancia derivativa para evitar oscilaciones
-        self.Ki = 0.005  # Ganancia integral para correcciones acumulativas
+        self.Kp = 2           # Ganancia proporcional para correcciones de trayectoria
+        self.Kd = 1           # Ganancia derivativa para evitar oscilaciones
+        self.Ki = 0.005       # Ganancia integral para correcciones acumulativas
+
         self.integral_error = 0.0
         self.last_error = 0.0
         self.safety_dist = 0.22  # Distancia mínima de seguridad a la pared
-        self.PRED_VEL = 0.15  # Velocidad lineal deseada [m/s]
-        self.PRED_ANG = 0.0  # Velocidad angular deseada [rad/s]
+        self.PRED_VEL = 0.25      # Velocidad lineal deseada [m/s]
+        self.PRED_ANG = 0.0      # Velocidad angular deseada [rad/s]
 
         # Estados de giro y callejón sin salida
         self.turn_left_mode = False
@@ -42,34 +43,21 @@ class WallFollower:
         z_scan = np.where(np.isnan(z_scan), 8.0, z_scan)  # Reemplazar NaN con 8.0 m
 
         # Obtener distancias relevantes para la navegación
-        front_distance = z_scan[0]  # Medidas frontales
-        l_dist = z_scan[59]  # Medidas laterales izquierda
-        r_dist = z_scan[-59]  # Medidas laterales derecha
+        front_distance = z_scan[0]     # Medidas frontales
+        l_dist = z_scan[60]            # Medidas laterales izquierda
+        r_dist = z_scan[-60]           # Medidas laterales derecha
 
         # Valores de velocidad iniciales
-        v = self.PRED_VEL  # Para el robot real, usar 0.1
+        v = self.PRED_VEL
         w = self.PRED_ANG
 
-        # **1. DETECCIÓN DE CALLEJÓN SIN SALIDA**
-        if (front_distance <= self.safety_dist
-            and l_dist <= 0.23
-            and r_dist <= 0.23
-        ):
+        # **1. DETECCIÓN DE CALLEJÓN SIN SALIDA (dead end) **
+        if (front_distance <= self.safety_dist and l_dist <= 0.2 and r_dist <= 0.2):
+            print("Callejón sin salida detectado")
             self.dead_end_mode = True
 
-        # GIRO DE 180 GRADOS PARA SALIR DE CALLEJÓN SIN SALIDA
-        if self.dead_end_mode:
-            v = 0.0
-            w = 1.0  
-            self.rotation_completed += abs(w) * self.dt
-            if self.rotation_completed >= math.pi:  # Giro de 180 grados
-                self.dead_end_mode = False
-                self.last_error = 0
-                self.integral_error = 0
-                self.rotation_completed = 0.0
-
         # **2. DETECCIÓN DE OBSTÁCULO FRONTAL Y SELECCIÓN DE GIRO**
-        if front_distance <= self.safety_dist:
+        if front_distance <= self.safety_dist and not self.dead_end_mode and not self.turn_left_mode and not self.turn_right_mode:
             if r_dist >= l_dist:
                 self.turn_right_mode = True
             else:
@@ -80,31 +68,46 @@ class WallFollower:
             v = 0.0
             w = -1.0
             self.rotation_completed += abs(w) * self.dt
-            if self.rotation_completed >= math.pi / 2:  # Giro de 90 grados
+            if self.rotation_completed >= math.pi / 2:
                 self.turn_right_mode = False
-                self.last_error = 0
-                self.integral_error = 0
-                self.rotation_completed = 0.0
+                self.reset()
+
+            return v, w
 
         # **4. GIRO A LA IZQUIERDA**
         elif self.turn_left_mode:
             v = 0.0
             w = 1.0
             self.rotation_completed += abs(w) * self.dt
-            if self.rotation_completed >= math.pi / 2:  # Giro de 90 grados
+            if self.rotation_completed >= math.pi / 2:
                 self.turn_left_mode = False
-                self.last_error = 0
-                self.integral_error = 0
-                self.rotation_completed = 0.0
-        # **5. CONTROL PID PARA CORRECCIONES SUAVES DE TRAYECTORIA**
-        # Si el robot se acerca demasiado a la pared, el PID ajusta la trayectoria.
+                self.reset()
+
+            return v, w
+
+        # **5. GIRO COMPLETO EN CALLEJÓN SIN SALIDA**
+        elif self.dead_end_mode:
+            v = 0.0
+            w = 1.0
+            self.rotation_completed += abs(w) * self.dt
+            if self.rotation_completed >= math.pi:
+                self.dead_end_mode = False
+                self.reset()
+
+            return v, w
+
+        # **6. CONTROL PID PARA CORRECCIONES SUAVES DE TRAYECTORIA**
         if abs(l_dist - r_dist) < 0.2:
-            error = l_dist - self.pred_dist  # Error respecto a la pared
+            error = l_dist - self.pred_dist
             derivative = (error - self.last_error) / self.dt
             self.integral_error += error * self.dt
-
-            # **Control PID para corrección suave**
             w = self.Kp * error + self.Kd * derivative + self.Ki * self.integral_error
             self.last_error = error
 
-        return v,w
+        return v, w
+
+    def reset(self):
+        """Reinicia variables internas tras completar un giro."""
+        self.last_error = 0.0
+        self.integral_error = 0.0
+        self.rotation_completed = 0.0

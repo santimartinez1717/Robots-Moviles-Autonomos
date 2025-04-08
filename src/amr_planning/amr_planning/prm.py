@@ -220,7 +220,7 @@ class PRM:
             if neighbors:
                 for x_end, y_end in neighbors:
                     axes.plot([x_start, x_end], [y_start, y_end], "c-", linewidth=0.25)
-
+            
         # Plot the path
         if path:
             x_val = [x[0] for x in path]
