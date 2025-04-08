@@ -73,6 +73,8 @@ class WallFollowerNode(LifecycleNode):
                 queue_size=10,  # tamaño de la cola
                 slop=9.0,  # tiempo máximo de espera,
             )
+        
+            
 
             ts.registerCallback(self._compute_commands_callback)
 
