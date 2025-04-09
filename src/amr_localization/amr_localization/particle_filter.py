@@ -161,6 +161,14 @@ class ParticleFilter:
 
             particle[0], particle[1], particle[2] = x_next, y_next, theta
 
+    def _bin_index(self, particle):
+        x, y, theta = particle
+        x_bin = round(x, 1)
+        y_bin = round(y, 1)
+        theta_bin = round(theta, 1)
+
+        return (x_bin, y_bin, theta_bin)
+
     def resample(self, measurements: list[float]) -> None:
         """Samples a new set of particles.
 
@@ -171,24 +179,34 @@ class ParticleFilter:
         # TODO: 3.9. Complete the function body with your code (i.e., replace the pass statement).
         
         # Compute the weights of the particles
-        weights = np.array([self._measurement_probability(measurements, particle) for particle in self._particles])
-
-        # Normalize the weights
+        weights = np.array([self._measurement_probability(measurements, p) for p in self._particles])
         weights /= np.sum(weights)
 
-        # Sistematic resampling
         N = len(self._particles)
-
-        u1 = np.random.uniform(0, 1/N)
-
-        indexes = np.zeros(N, dtype=int)
+        u1 = np.random.uniform(0, 1 / N)
         cumulative_sum = np.cumsum(weights)
-        for k in range(1, N):
+
+
+        # Sistematic resampling
+        indexes = np.zeros(N, dtype=int)
+        for k in range(1, N): 
             u = u1 + (k - 1) / N
             indexes[k - 1] = np.searchsorted(cumulative_sum, u)
 
-        self._particles = self._particles[indexes]
-        print(len(self._particles))
+        resampled = self._particles[indexes]
+
+        # Contar bins únicos (hipótesis distintas)
+        bins = set(self._bin_index(p) for p in resampled)
+        num_bins = len(bins)
+
+        # Política sencilla: más bins ⇒ más partículas
+        new_count = min(100 + 20 * num_bins, 1000)
+
+        # Actualizar el número de partículas con resampling
+        self._particles = resampled[np.random.choice(len(resampled), new_count, replace=True)]
+        self._particle_count = len(self._particles)
+
+        print(f"Iteración {self._iteration}: {num_bins} hipótesis, {self._particle_count} partículas")
 
         
     def plot(self, axes, orientation: bool = True):
@@ -433,3 +451,33 @@ class ParticleFilter:
             probability *= prob  
 
         return probability
+
+    def check_for_loss(self) -> bool:
+        """Checks if the robot is lossed with the average likelihood of the particles.
+        If the average likelihood is too low, the robot is considered lost.
+
+        Returns:
+            bool: True if the robot is lost, False otherwise.
+
+        """
+        
+        if len(self._particles) == 0:
+            return True
+
+        likelihoods = np.array([self._measurement_probability(self._map.get_observations(p), p) for p in self._particles])
+        average_likelihood = np.mean(likelihoods)
+
+        # Check if the average likelihood is below a threshold
+        return average_likelihood < 0.01  
+
+    def reset_particles(self):
+        """Reinitializes the particles to a random state.
+
+        """
+        # Reinitialize particles    
+        self._particles = self._init_particles(
+            self._initial_particle_count,
+            global_localization=True,
+            initial_pose=(float('nan'), float('nan'), float('nan')),
+            initial_pose_sigma=(float('nan'), float('nan'), float('nan'))
+        )

@@ -93,10 +93,7 @@ class PRM:
 
         # 4.3. Complete the function body (i.e., replace the code below).
 
-
         path: list[tuple[float, float]] = []
-
-        
 
         #open {(x, y): (f, g)}: donde f = g + h, g = distancia acumulada desde el nodo inicial, h = distancia al nodo objetivo
 
@@ -220,7 +217,7 @@ class PRM:
             if neighbors:
                 for x_end, y_end in neighbors:
                     axes.plot([x_start, x_end], [y_start, y_end], "c-", linewidth=0.25)
-
+            
         # Plot the path
         if path:
             x_val = [x[0] for x in path]
