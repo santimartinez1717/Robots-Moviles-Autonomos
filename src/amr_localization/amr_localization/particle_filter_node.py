@@ -165,18 +165,27 @@ class ParticleFilterNode(LifecycleNode):
 
         if self._localized or not self._steps % self._steps_btw_sense_updates:
             start_time = time.perf_counter()
+
+            # 1. RESAMPLING:
             self._particle_filter.resample(z_us)
             sense_time = time.perf_counter() - start_time
-
             self.get_logger().info(f"Sense step time: {sense_time:6.3f} s")
 
+            # 2. Check for loss:
+            if self._particle_filter.check_for_loss(z_us):
+                self.get_logger().warn("El robot parece estar perdido. Reinicializando partículas...")
+                self._particle_filter.reset_particles() # Reinitialize particle filter; start over
+                self._localized = False  
+                return pose  
+
+            # 3. Visualize particles:
             if self._enable_plot:
                 self._particle_filter.show("Sense", save_figure=True)
 
+            # 4. CLUSTERING:
             start_time = time.perf_counter()
             self._localized, pose = self._particle_filter.compute_pose()
             clustering_time = time.perf_counter() - start_time
-
             self.get_logger().info(f"Clustering time: {clustering_time:6.3f} s")
 
         return pose

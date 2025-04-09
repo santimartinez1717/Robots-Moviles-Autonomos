@@ -24,7 +24,7 @@ class WallFollower:
         self.turn_left_mode = False
         self.turn_right_mode = False
         self.dead_end_mode = False
-
+        self.rotation_completed = 0.0
 
     def compute_commands(self, z_scan: list[float], z_v: float, z_w: float) -> tuple[float, float]:
         """Algoritmo de seguimiento de paredes.
