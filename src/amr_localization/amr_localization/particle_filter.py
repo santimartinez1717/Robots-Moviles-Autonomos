@@ -452,9 +452,12 @@ class ParticleFilter:
 
         return probability
 
-    def check_for_loss(self) -> bool:
-        """Checks if the robot is lossed with the average likelihood of the particles.
+    def check_for_loss(self, measurements: list[float]) -> bool:
+        """Checks if the robot is lost based on the average likelihood of the particles.
         If the average likelihood is too low, the robot is considered lost.
+
+        Args:
+            measurements: Sensor measurements [m].
 
         Returns:
             bool: True if the robot is lost, False otherwise.
@@ -464,11 +467,11 @@ class ParticleFilter:
         if len(self._particles) == 0:
             return True
 
-        likelihoods = np.array([self._measurement_probability(self._map.get_observations(p), p) for p in self._particles])
+        likelihoods = np.array([self._measurement_probability(measurements, p) for p in self._particles])
         average_likelihood = np.mean(likelihoods)
 
         # Check if the average likelihood is below a threshold
-        return average_likelihood < 0.01  
+        return average_likelihood < 0.01
 
     def reset_particles(self):
         """Reinitializes the particles to a random state.

@@ -14,7 +14,7 @@ import traceback
 from transforms3d.euler import euler2quat
 
 from amr_localization.particle_filter import ParticleFilter
-
+from amr_localization.kalman_filter import EKF
 
 class ParticleFilterNode(LifecycleNode):
     def __init__(self):
@@ -69,6 +69,7 @@ class ParticleFilterNode(LifecycleNode):
 
             # Attribute and object initializations
             self._localized = False
+            self._converged = False
             self._steps = 0
             map_path = os.path.realpath(
                 os.path.join(os.path.dirname(__file__), "..", "maps", world + ".json")
@@ -87,6 +88,14 @@ class ParticleFilterNode(LifecycleNode):
 
             if self._enable_plot:
                 self._particle_filter.show("Initialization", save_figure=True)
+
+            self._ekf = EKF(
+                dt = dt,
+                sigma_v = sigma_v,
+                sigma_w = sigma_w,
+                sigma_z = sigma_z,
+
+            )
 
             # Publishers
             # TODO: 3.1. Create the /pose publisher (PoseStamped message).
@@ -145,12 +154,26 @@ class ParticleFilterNode(LifecycleNode):
         z_scan: list[float] = scan_msg.ranges
 
         # Execute particle filter
-        self._execute_motion_step(z_v, z_w)
-        x_h, y_h, theta_h = self._execute_measurement_step(z_scan)
-        self._steps += 1
+        if not self._localized: 
+            self._execute_motion_step(z_v, z_w) # Move particles in direction of odometry
+            x_h, y_h, theta_h = self._execute_measurement_step(z_scan) # Resample and cluster particles
+            self._steps += 1
+        else:
+            if self._converged:
+                # Initialize the EKF with the pose estimate
+                self._ekf.initialize(x_h, y_h, theta_h)
+                self._converged = False
+                
+            # Update the EKF with the odometry measurements
+            self._ekf.predict(z_v, z_w)
+            # Update the EKF with the LiDAR measurements
+            self._ekf.update(z_scan)
+            self._steps += 1
+            # Get the pose estimate from the EKF
+            x_h, y_h, theta_h = self.ekf.pose
 
         # Publish
-        self._publish_pose_estimate(x_h, y_h, theta_h)
+        self._publish_pose_estimate(x_h, y_h, theta_h) # publish pose estimation based on clustering
 
     def _execute_measurement_step(self, z_us: list[float]) -> tuple[float, float, float]:
         """Executes and monitors the measurement step (sense) of the particle filter.
@@ -185,6 +208,7 @@ class ParticleFilterNode(LifecycleNode):
             # 4. CLUSTERING:
             start_time = time.perf_counter()
             self._localized, pose = self._particle_filter.compute_pose()
+            self._converged = self._localized # if the clustering converged for the first time
             clustering_time = time.perf_counter() - start_time
             self.get_logger().info(f"Clustering time: {clustering_time:6.3f} s")
 
