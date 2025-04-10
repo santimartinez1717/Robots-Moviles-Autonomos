@@ -14,7 +14,7 @@ import traceback
 from transforms3d.euler import euler2quat
 
 from amr_localization.particle_filter import ParticleFilter
-from amr_localization.kalman_filter import EKF
+from amr_localization.kalman_filter import ExtendedKalmanFilter
 
 class ParticleFilterNode(LifecycleNode):
     def __init__(self):
@@ -89,7 +89,7 @@ class ParticleFilterNode(LifecycleNode):
             if self._enable_plot:
                 self._particle_filter.show("Initialization", save_figure=True)
 
-            self._ekf = EKF(
+            self._ekf = ExtendedKalmanFilter(
                 dt = dt,
                 sigma_v = sigma_v,
                 sigma_w = sigma_w,
@@ -158,19 +158,19 @@ class ParticleFilterNode(LifecycleNode):
             self._execute_motion_step(z_v, z_w) # Move particles in direction of odometry
             x_h, y_h, theta_h = self._execute_measurement_step(z_scan) # Resample and cluster particles
             self._steps += 1
-        else:
+
+        else: # Delegate to the EKF when localized
             if self._converged:
                 # Initialize the EKF with the pose estimate
+                x_h, y_h, theta_h = self._execute_measurement_step(z_scan)
+                self.get_logger().info(f"EKF initialized with pose estimate: {x_h:.3f}, {y_h:.3f}, {math.degrees(theta_h):.3f} deg")
                 self._ekf.initialize(x_h, y_h, theta_h)
                 self._converged = False
-                
+
             # Update the EKF with the odometry measurements
             self._ekf.predict(z_v, z_w)
-            # Update the EKF with the LiDAR measurements
-            self._ekf.update(z_scan)
-            self._steps += 1
             # Get the pose estimate from the EKF
-            x_h, y_h, theta_h = self.ekf.pose
+            x_h, y_h, theta_h = self._ekf.pose
 
         # Publish
         self._publish_pose_estimate(x_h, y_h, theta_h) # publish pose estimation based on clustering

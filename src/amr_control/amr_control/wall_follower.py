@@ -17,7 +17,7 @@ class WallFollower:
         self.integral_error = 0.0
         self.last_error = 0.0
         self.safety_dist = 0.22  # Distancia mínima de seguridad a la pared
-        self.PRED_VEL = 0.25      # Velocidad lineal deseada [m/s]
+        self.PRED_VEL = 0.5      # Velocidad lineal deseada [m/s]
         self.PRED_ANG = 0.0      # Velocidad angular deseada [rad/s]
 
         # Estados de giro y callejón sin salida
@@ -88,7 +88,7 @@ class WallFollower:
         # **5. GIRO COMPLETO EN CALLEJÓN SIN SALIDA**
         elif self.dead_end_mode:
             v = 0.0
-            w = 1.0
+            w = 2.0
             self.rotation_completed += abs(w) * self.dt
             if self.rotation_completed >= math.pi:
                 self.dead_end_mode = False
