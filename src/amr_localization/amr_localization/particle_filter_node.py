@@ -94,7 +94,7 @@ class ParticleFilterNode(LifecycleNode):
                 sigma_v = sigma_v,
                 sigma_w = sigma_w,
                 sigma_z = sigma_z,
-
+                map_path = map_path,
             )
 
             # Publishers
@@ -167,8 +167,11 @@ class ParticleFilterNode(LifecycleNode):
                 self._ekf.initialize(x_h, y_h, theta_h)
                 self._converged = False
 
-            # Update the EKF with the odometry measurements
+            # Predict the EKF with the odometry measurements
             self._ekf.predict(z_v, z_w)
+            # Update the EKF with the LiDAR measurements
+            self._ekf.update(z_scan)
+
             # Get the pose estimate from the EKF
             x_h, y_h, theta_h = self._ekf.pose
 
