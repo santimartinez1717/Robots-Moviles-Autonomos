@@ -41,12 +41,12 @@ class PurePursuit:
 
         # Comprobación de alineamiento
         if abs(alpha) > np.pi / 4 and self._first_rotation:
-            self._first_rotation = False # guarantees only aligning with route at the beginning
             print("Rotating in place")
             v = 0.0
             w = 1.0 if alpha > 0 else -1.0
-            
+
         else:
+            self._first_rotation = False
             v = 0.2
             w = 2 * v * np.sin(alpha) / self._lookahead_distance
 

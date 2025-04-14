@@ -354,7 +354,7 @@ class ParticleFilter:
 
         # TODO: 3.6. Complete the missing function body with your code.
         
-        rays = self._lidar_rays(particle, range(0, 240, 30))  # 8 uniformly spaced rays
+        rays = self.lidar_rays(particle, range(0, 240, 30), sensor_range_max= self._sensor_range_max)  # 8 uniformly spaced rays
         for ray in rays:
             intersection,  distance = self._map.check_collision(ray, True)
 
@@ -384,10 +384,11 @@ class ParticleFilter:
         return (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
 
 
-    
-    def _lidar_rays(
-        self, pose: tuple[float, float, float], indices: tuple[float], degree_increment: float = 1.5
-    ) -> list[list[tuple[float, float]]]:
+    @staticmethod
+    def lidar_rays(pose: tuple[float, float, float], 
+                indices: tuple[float], 
+                sensor_range_max: float, 
+                degree_increment: float = 1.5) -> list[list[tuple[float, float]]]:
         """Determines the simulated LiDAR ray segments for a given robot pose.
 
         Args:
@@ -411,8 +412,8 @@ class ParticleFilter:
 
         for index in indices:
             ray_angle = math.radians(degree_increment * index)
-            x_end = x_start + self._sensor_range_max * math.cos(theta + ray_angle)
-            y_end = y_start + self._sensor_range_max * math.sin(theta + ray_angle)
+            x_end = x_start + sensor_range_max * math.cos(theta + ray_angle)
+            y_end = y_start + sensor_range_max * math.sin(theta + ray_angle)
             rays.append([(x_start, y_start), (x_end, y_end)])
 
         return rays
@@ -472,6 +473,7 @@ class ParticleFilter:
 
         # Check if the average likelihood is below a threshold
         return average_likelihood < 0.01
+
 
     def reset_particles(self):
         """Reinitializes the particles to a random state.
