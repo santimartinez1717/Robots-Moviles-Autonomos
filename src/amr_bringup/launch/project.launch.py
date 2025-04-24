@@ -14,7 +14,9 @@ def generate_launch_description():
     [1.0,1.0],
     [1.0,-1.0],
     [-0.2, -0.2],
-    [0.2, -0.6]
+    [0.2, -0.6],
+    [-0.6, 1.0],
+    [-1.0, 0.6]
 ]
     possible_angles = [
         math.radians(0),

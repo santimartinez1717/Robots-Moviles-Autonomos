@@ -154,26 +154,26 @@ class ParticleFilterNode(LifecycleNode):
         z_scan: list[float] = scan_msg.ranges
 
         # Execute particle filter
-        if not self._localized: 
-            self._execute_motion_step(z_v, z_w) # Move particles in direction of odometry
-            x_h, y_h, theta_h = self._execute_measurement_step(z_scan) # Resample and cluster particles
-            self._steps += 1
 
-        else: # Delegate to the EKF when localized
-            if self._converged:
-                # Initialize the EKF with the pose estimate
-                x_h, y_h, theta_h = self._execute_measurement_step(z_scan)
-                self.get_logger().info(f"EKF initialized with pose estimate: {x_h:.3f}, {y_h:.3f}, {math.degrees(theta_h):.3f} deg")
-                self._ekf.initialize(x_h, y_h, theta_h)
-                self._converged = False
+        self._execute_motion_step(z_v, z_w) # Move particles in direction of odometry
+        x_h, y_h, theta_h = self._execute_measurement_step(z_scan) # Resample and cluster particles
+        self._steps += 1
 
-            # Predict the EKF with the odometry measurements
-            self._ekf.predict(z_v, z_w)
-            # Update the EKF with the LiDAR measurements
-            self._ekf.update(z_scan)
+        # else: # Delegate to the EKF when localized
+        #     if self._converged:
+        #         # Initialize the EKF with the pose estimate
+        #         x_h, y_h, theta_h = self._execute_measurement_step(z_scan)
+        #         self.get_logger().info(f"EKF initialized with pose estimate: {x_h:.3f}, {y_h:.3f}, {math.degrees(theta_h):.3f} deg")
+        #         self._ekf.initialize(x_h, y_h, theta_h)
+        #         self._converged = False
 
-            # Get the pose estimate from the EKF
-            x_h, y_h, theta_h = self._ekf.pose
+        #     # Predict the EKF with the odometry measurements
+        #     self._ekf.predict(z_v, z_w)
+        #     # Update the EKF with the LiDAR measurements
+        #     self._ekf.update(z_scan)
+
+        #     # Get the pose estimate from the EKF
+        #     x_h, y_h, theta_h = self._ekf.pose
 
         # Publish
         self._publish_pose_estimate(x_h, y_h, theta_h) # publish pose estimation based on clustering
