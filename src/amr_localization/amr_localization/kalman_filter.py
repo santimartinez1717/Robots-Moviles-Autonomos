@@ -107,16 +107,16 @@ class ExtendedKalmanFilter:
 
         x_r, y_r, theta_r = self.x[0, 0], self.x[1, 0], self.x[2, 0]
         
-        for ray in rays:
+        for ray, measurement in zip(rays, measurements):
             intersection,  distance = self._map.check_collision(ray, True)
 
-            if intersection:
+            if intersection and measurement:
                 # Compute expected distance
-                z = np.sqrt((intersection[0] - x_r)**2 + (intersection[1] - y_r)**2)
+                z_hat = np.sqrt((intersection[0] - x_r)**2 + (intersection[1] - y_r)**2)
                 
                 # Compute Jacobian of the measurement model
                 H = np.array([
-                    [(x_r - intersection[0]) / z, (y_r - intersection[1]) / z, 0]
+                    [(x_r - intersection[0]) / z_hat, (y_r - intersection[1]) / z_hat, 0]
                 ])
                 
                 # Compute Kalman gain
@@ -124,8 +124,8 @@ class ExtendedKalmanFilter:
                 K = self.P @ H.T @ np.linalg.inv(S)
                 
                 # Update state and covariance
-                z_hat = np.array([[distance]])
-                y = z_hat - z
+                z = np.array([[measurement]])
+                y = z - z_hat
                 
                 self.x += K @ y
                 self.P = (np.eye(3) - K @ H) @ self.P
